@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pointage et relances — BK'ART</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#fff; --tx:#16181d; --mut:#6b7280; --line:#e4e6ea;
+  --ok:#15803d; --okbg:#dcfce7; --warn:#b45309; --warnbg:#fef3c7;
+  --dang:#b91c1c; --dangbg:#fee2e2; --acc:#1d4ed8;
+  --soc:#111827; --socTx:#fff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+
+header{background:var(--soc);color:var(--socTx);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header .marque{font-weight:700}
+.socNom{background:rgba(255,255,255,.16);border-radius:6px;padding:3px 10px;font-weight:600;font-size:13px}
+.etat{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px}
+.pastille{width:8px;height:8px;border-radius:50%;background:#facc15}
+.pastille.live{background:#22c55e}
+.pastille.ko{background:#ef4444}
+
+nav.circuits{background:var(--card);border-bottom:1px solid var(--line);padding:0 16px;display:flex;gap:2px;overflow-x:auto}
+nav.circuits button{background:none;border:0;padding:11px 15px;color:var(--mut);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
+nav.circuits button[aria-selected=true]{color:var(--tx);border-bottom-color:var(--soc)}
+nav.circuits .cpt{font-weight:400;color:var(--mut);margin-left:5px;font-size:12px}
+
+.outils{padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--card);border-bottom:1px solid var(--line)}
+.outils input[type=search],.outils select{border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:var(--card)}
+.outils input[type=search]{min-width:150px;flex:1;max-width:260px}
+
+.bandeau{margin:12px 16px 0;border-radius:8px;padding:10px 14px;font-size:13px}
+.bandeau.err{background:var(--dangbg);color:var(--dang)}
+.bandeau.avert{background:var(--warnbg);color:var(--warn)}
+
+.split{display:grid;grid-template-columns:minmax(380px,1fr) minmax(400px,1.05fr);gap:14px;padding:14px 16px 90px;align-items:start}
+@media (max-width:1020px){ .split{grid-template-columns:1fr} }
+
+.panneau{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.panneau > h2{margin:0;padding:11px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);border-bottom:1px solid var(--line)}
+
+.listeWrap{max-height:calc(100vh - 300px);overflow:auto}
+table.liste{width:100%;border-collapse:collapse}
+table.liste th,table.liste td{padding:6px 8px;border-bottom:1px solid var(--line);font-size:12.5px;text-align:left}
+table.liste th{background:#fafbfc;color:var(--mut);font-weight:600;position:sticky;top:0;z-index:2;font-size:11.5px}
+table.liste tbody tr{cursor:pointer}
+table.liste tbody tr:hover{background:#f7f9fc}
+table.liste tbody tr[aria-selected=true]{background:#eef2ff;box-shadow:inset 3px 0 0 var(--acc)}
+table.liste tbody tr.bloquee{opacity:.5}
+.chk{width:28px}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.tiers{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.piece{white-space:nowrap;font-variant-numeric:tabular-nums}
+.puce{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:99px;white-space:nowrap}
+.p-ok{background:var(--okbg);color:var(--ok)}
+.p-att{background:var(--warnbg);color:var(--warn)}
+.p-non{background:var(--dangbg);color:var(--dang)}
+.p-gris{background:#eef0f3;color:var(--mut)}
+.vide{padding:34px 16px;text-align:center;color:var(--mut);font-size:13px}
+
+.detail{padding:16px 18px}
+.detail .montant{font-size:26px;font-weight:700;line-height:1.15}
+.detail .tiersNom{color:var(--mut);margin:2px 0 14px}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;margin:0 0 14px;font-size:13px}
+.detail dt{color:var(--mut)}
+.detail dd{margin:0;font-variant-numeric:tabular-nums}
+.bloc{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.bloc h3{margin:0 0 9px;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+.signal{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:8px 11px;font-size:12.5px;margin-bottom:12px}
+.manque{background:#f1f3f6;color:var(--mut);border-radius:6px;padding:8px 11px;font-size:12.5px;margin-bottom:12px}
+
+table.actes{width:100%;border-collapse:collapse;margin-bottom:9px}
+table.actes th{font-size:11px;color:var(--mut);text-align:left;font-weight:600;padding:0 6px 4px 0}
+table.actes td{padding:3px 6px 3px 0;vertical-align:top}
+table.actes input[type=date]{border:1px solid var(--line);border-radius:5px;padding:5px 6px;font-size:12.5px;width:132px}
+table.actes input[type=text]{border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-size:12.5px;width:100%}
+table.actes .sup{border:0;background:none;color:var(--mut);padding:4px 6px;line-height:1}
+table.actes .sup:hover{color:var(--dang)}
+.colDate{width:140px}
+.colSup{width:28px}
+
+.boutons{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:8px 14px;font-weight:600;font-size:13px}
+.btn.prim{background:var(--soc);color:var(--socTx);border-color:var(--soc)}
+.btn.ghost{color:var(--mut)}
+.btn.petit{padding:5px 10px;font-size:12.5px;font-weight:500}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.relances{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.conseil{font-size:12px;color:var(--mut);margin-top:7px}
+
+.lot{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 -4px 16px rgba(0,0,0,.07);z-index:30}
+.lot .n{font-weight:700;font-size:13px}
+.lot label{color:var(--mut);font-size:12.5px}
+.lot input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+.lot .fin{margin-left:auto;display:flex;gap:8px}
+
+details.journal{margin:0 16px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+details.journal summary{cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:600}
+details.journal ol{margin:10px 0 0;padding-left:18px;font-size:12.5px;color:var(--mut)}
+
+dialog{border:0;border-radius:12px;padding:0;max-width:680px;width:calc(100% - 28px);box-shadow:0 20px 60px rgba(0,0,0,.28)}
+dialog::backdrop{background:rgba(15,18,25,.45)}
+.dlg{padding:22px}
+.dlg h3{margin:0 0 8px;font-size:17px}
+.dlg p.sous{margin:0 0 14px;color:var(--mut);font-size:13px}
+.dlg ul{margin:0 0 16px;padding-left:18px;font-size:12.5px;max-height:170px;overflow:auto}
+.dlg .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.champ{margin-bottom:12px}
+.champ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin-bottom:4px}
+.champ input[type=text]{width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.champ textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:10px 12px;min-height:260px;resize:vertical;line-height:1.55;font-size:13px}
+.niveauTag{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;margin-left:8px}
+.n1{background:var(--okbg);color:var(--ok)}
+.n2{background:var(--warnbg);color:var(--warn)}
+.n3{background:var(--dangbg);color:var(--dang)}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="marque">Pointage et relances</span>
+  <span class="socNom" id="socNom">—</span>
+  <span class="etat"><span class="pastille" id="pastille"></span><span id="etatTx">initialisation…</span></span>
+</header>
+
+<nav class="circuits" role="tablist" id="circuits"></nav>
+
+<div class="outils">
+  <input type="search" id="recherche" placeholder="Rechercher un tiers, une pièce…">
+  <select id="filtreStatut">
+    <option value="attente" selected>Restant à pointer</option>
+    <option value="tous">Tous</option>
+    <option value="regle">Déjà pointés</option>
+  </select>
+  <select id="filtreRelance">
+    <option value="tous">Toutes</option>
+    <option value="retard">En retard seulement</option>
+    <option value="jamais">Jamais relancées</option>
+  </select>
+</div>
+
+<div id="bandeaux"></div>
+
+<div class="split">
+  <section class="panneau">
+    <h2 id="titreListe">Échéances</h2>
+    <div class="listeWrap" id="listeWrap"></div>
+  </section>
+  <section class="panneau">
+    <h2>Détail</h2>
+    <div id="detail"></div>
+  </section>
+</div>
+
+<details class="journal">
+  <summary>Journal technique — lectures et écritures MEG</summary>
+  <div id="journal">Rien pour l'instant.</div>
+</details>
+
+<div class="lot" id="lot" hidden>
+  <span class="n" id="lotN">0 sélectionnée</span>
+  <label for="lotDate">Date de règlement</label>
+  <input type="date" id="lotDate">
+  <div class="fin">
+    <button class="btn ghost" id="lotAnnuler">Désélectionner</button>
+    <button class="btn prim" id="lotValider">Pointer la sélection</button>
+  </div>
+</div>
+
+<dialog id="confirme">
+  <form method="dialog" class="dlg">
+    <h3 id="cTitre">Confirmer</h3>
+    <p class="sous" id="cTexte"></p>
+    <ul id="cListe"></ul>
+    <div class="actions">
+      <button class="btn ghost" value="non">Annuler</button>
+      <button class="btn prim" value="oui">Confirmer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgRelance">
+  <div class="dlg">
+    <h3>Courrier de relance <span id="rNiveauTag" class="niveauTag"></span></h3>
+    <p class="sous" id="rSous"></p>
+    <div class="champ"><label for="rDest">Destinataire</label><input type="text" id="rDest" placeholder="adresse e-mail du client"></div>
+    <div class="champ"><label for="rObjet">Objet</label><input type="text" id="rObjet"></div>
+    <div class="champ"><label for="rCorps">Message</label><textarea id="rCorps"></textarea></div>
+    <div id="rNotes" class="manque" hidden></div>
+    <div class="actions">
+      <button class="btn ghost" id="rFermer">Fermer</button>
+      <button class="btn" id="rCopier">Copier</button>
+      <button class="btn" id="rMail">Ouvrir dans le client mail</button>
+      <button class="btn prim" id="rEnregistrer">Enregistrer l'action</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   Pointage des règlements et relances — groupe BK'ART
+
+   RÈGLE DE SÛRETÉ CENTRALE
+   L'outil ne choisit pas la société : il suit celle qui est sélectionnée
+   dans MEG, et le vérifie auprès de MEG avant d'afficher quoi que ce soit.
+   Raison : l'API des règlements fournisseurs ignore l'identifiant
+   d'entreprise qu'on lui passe et répond toujours pour la société active
+   dans MEG. Un sélecteur indépendant affichait donc les données d'une
+   société sous le nom d'une autre.
+   ========================================================================= */
+
+const SOCIETES = [
+  { cle:'BKART',    nom:"BK'ART",                  id:'TP4KIJKMEH3BM___', fond:'#4b5563', texte:'#fff' },
+  { cle:'ALKET',    nom:'ALKET EDITIONS',          id:'ML6VVLGCCNAZ2___', fond:'#1d4ed8', texte:'#fff' },
+  { cle:'LVSL',     nom:'LE VENT SE LEVE',         id:'32IDYN3SRNNZI___', fond:'#111827', texte:'#fff' },
+  { cle:'PDD',      nom:'PYRENEES DORURE DECOUPE', id:'JCI64YEIANQ6A___', fond:'#f5c518', texte:'#111' },
+  { cle:'SIGN16',   nom:'SIGNALETIQUE 16',         id:'ZWDZNBM7RMBPQ___', fond:'#dc2626', texte:'#fff' },
+  { cle:'BERLANNE', nom:'BERLANNE IMMO',           id:'XROJYL5PTVYIK___', fond:'#0f766e', texte:'#fff' },
+  { cle:'LOEBET',   nom:'LOEBET IMMOBILIER',       id:'YU5YE6GFQ7OVQ___', fond:'#7c3aed', texte:'#fff' },
+  { cle:'PUYMOYEN', nom:'PUYMOYEN IMMO',           id:'LIJ73M74IGKGG___', fond:'#b45309', texte:'#fff' }
+];
+
+const CIRCUITS = {
+  achats: { titre:'Achats — fournisseurs', tiers:'Fournisseur', relances:false },
+  ventes: { titre:'Ventes — clients',      tiers:'Client',      relances:true  }
+};
+
+const norm = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/* =========================================================================
+   Accès MEG
+   ========================================================================= */
+const Meg = {
+  jeton(){
+    const lire = (st) => { try { return JSON.parse(st.getItem('0-meg-front')).authzData; } catch(e){ return null; } };
+    let t = lire(sessionStorage);
+    if (!t && window.opener){ try { t = lire(window.opener.sessionStorage); } catch(e){} }
+    return t;
+  },
+  disponible(){
+    try { return location.origin.indexOf('mon-expert-en-gestion.fr') !== -1 && !!this.jeton(); }
+    catch(e){ return false; }
+  },
+  entetes(id){
+    const h = { 'Authorization':'Bearer ' + this.jeton() };
+    if (id) h['X-IdEntreprise'] = id;
+    return h;
+  },
+
+  /* Société sélectionnée dans l'onglet MEG qui a ouvert l'outil. */
+  societeAffichee(){
+    try {
+      const b = window.opener && window.opener.document.querySelector('.top-bar-select-bouton');
+      if (b) return (b.textContent || '').replace(/\s+/g, ' ').trim();
+    } catch(e){}
+    return null;
+  },
+
+  /* Contrôle : MEG confirme-t-il que cet identifiant porte bien ce nom ? */
+  async verifierSociete(soc){
+    const r = await fetch('https://rest.mon-expert-en-gestion.fr/portail/rest/entreprises/' + soc.id + '/informations-generales',
+      { headers:this.entetes() });
+    if (!r.ok) return { ok:false, motif:'vérification impossible (code ' + r.status + ')' };
+    const m = (await r.text()).match(/"(raisonSociale|nom|denomination)"\s*:\s*"([^"]{2,80})"/);
+    if (!m) return { ok:false, motif:'raison sociale illisible' };
+    return norm(m[2]) === norm(soc.nom) ? { ok:true } : { ok:false, motif:'MEG répond « ' + m[2] + ' » pour cet identifiant' };
+  },
+
+  /* Achats : cette API IGNORE X-IdEntreprise et suit la société MEG. */
+  async achats(soc){
+    const q = new URLSearchParams({ dateDebutEcheance:'2020-01-01', dateFinEcheance:'2030-12-31',
+      enAttente:'true', nonRegle:'true', planifie:'true', regle:'true' });
+    const r = await fetch('https://rest.mon-expert-en-gestion.fr/ac/rest/reglements?' + q, { headers:this.entetes(soc.id) });
+    if (!r.ok) throw new Error('code ' + r.status);
+    return (await r.json()).reglements || [];
+  },
+
+  /* Ventes : /cdf/rest/ventes, correctement cloisonné par société. */
+  async ventes(soc){
+    let tout = [], annonce = null, vides = 0;
+    for (let p = 1; p <= 80; p++){
+      const r = await fetch('https://rest.mon-expert-en-gestion.fr/cdf/rest/ventes?page=' + p + '&size=25',
+        { headers:this.entetes(soc.id) });
+      if (r.status === 204){ if (++vides >= 2) break; continue; }
+      if (!r.ok) break;
+      const j = await r.json();
+      if (annonce === null) annonce = j.totalElements;
+      const lot = j.data || [];
+      if (!lot.length){ if (++vides >= 2) break; continue; }
+      tout = tout.concat(lot);
+      vides = 0;
+    }
+    return { lignes:tout, annonce };
+  },
+
+  async pointerAchat(soc, l, date){
+    const corps = Object.assign({}, l.brut, { statutEcheance:'REGLE', dateReglement:date });
+    return fetch('https://rest.mon-expert-en-gestion.fr/ac/rest/reglements/' + l.idAchat + '/echeances/' + l.idReglement,
+      { method:'POST', headers:Object.assign({'Content-Type':'application/json'}, this.entetes(soc.id)), body:JSON.stringify(corps) });
+  },
+  async echeancier(soc, uuid){
+    const r = await fetch('https://rest.mon-expert-en-gestion.fr/cdf/rest/ventes/' + uuid + '/echeancier?fetch=echeances',
+      { headers:this.entetes(soc.id) });
+    if (!r.ok) throw new Error('échéancier ' + r.status);
+    return (await r.json()).data || {};
+  },
+  async encaisserVente(soc, l, date){
+    if (!l.idEcheance){
+      const e = await this.echeancier(soc, l.idVente);
+      const libre = (e.echeances || []).find(x => x.etat !== 'ENCAISSE') || (e.echeances || [])[0];
+      if (!libre) throw new Error('aucune échéance sur cette pièce');
+      l.idEcheance = libre.idEcheance;
+      if (!l.idMode) l.idMode = (libre.modeReglement || {}).idModeReglement;
+    }
+    return fetch('https://rest.mon-expert-en-gestion.fr/cdf/rest/ventes/' + l.idVente + '/echeances/' + l.idEcheance + '/encaisser',
+      { method:'POST', headers:Object.assign({'Content-Type':'application/json'}, this.entetes(soc.id)),
+        body:JSON.stringify({ idModeReglement:l.idMode, datePaiement:date }) });
+  }
+};
+
+/* =========================================================================
+   Normalisation
+   ========================================================================= */
+function ligneAchat(x){
+  return { circuit:'achats', cle:'a' + x.idReglement,
+    piece:x.noPiece, date:x.datePiece, tiers:x.libelle,
+    echeance:x.dateEcheance, montant:x.montant,
+    pointee:x.statutEcheance === 'REGLE', partielle:false, avoir:(x.montant || 0) < 0,
+    datePointage:x.dateReglement || null,
+    mode:(x.modeReglement || {}).code || '—', idMode:(x.modeReglement || {}).id,
+    idAchat:x.idAchat, idReglement:x.idReglement,
+    bloquee:!!(x.readOnly || x.enEdition),
+    motifBlocage:x.readOnly ? 'lecture seule' : (x.enEdition ? "en cours d'édition" : null),
+    exporte:!!x.exporte, brut:x };
+}
+function ligneVente(x){
+  const m = x.montants || {};
+  return { circuit:'ventes', cle:'v' + x.idPiece,
+    piece:x.numero, date:x.dateVente, tiers:(x.client || {}).libelle,
+    echeance:x.dateEcheance, montant:m.ttc,
+    pointee:x.etat === 'SOLDE',
+    partielle:x.etat === 'PARTIELLEMENT_REGLE',
+    avoir:x.type === 'AVOIR' || (m.ttc || 0) < 0,
+    datePointage:null,
+    mode:'—', idVente:x.idPiece, idEcheance:null, idMode:null,
+    bloquee:false, motifBlocage:null,
+    exporte:!!x.dateExportComptable, brut:x };
+}
+
+/* =========================================================================
+   État
+   ========================================================================= */
+const etat = {
+  societe:null, circuit:'ventes', selection:new Set(), courante:null,
+  donnees:{ achats:[], ventes:[] }, historique:{}, journal:[], bandeaux:[]
+};
+
+const $ = (s) => document.querySelector(s);
+const aujourdhui = () => new Date().toISOString().slice(0,10);
+const eur = (v) => (v == null ? '—' : v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €');
+const jourFr = (d) => d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
+const retard = (e) => e ? Math.round((Date.now() - new Date(e)) / 86400000) : 0;
+const echapper = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function lignes(){ return etat.donnees[etat.circuit] || []; }
+function ligneParCle(c){ return lignes().find(l => l.cle === c); }
+function actes(cle){ return etat.historique[cle] || (etat.historique[cle] = []); }
+function relancesDe(cle){ return actes(cle).filter(a => a.niveau); }
+function nbRelances(cle){ return relancesDe(cle).length; }
+function derniereRelance(cle){
+  const r = relancesDe(cle).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  return r.length ? r[r.length-1] : null;
+}
+
+/* =========================================================================
+   Démarrage
+   ========================================================================= */
+function stopper(message){
+  etat.societe = null;
+  etat.donnees = { achats:[], ventes:[] };
+  etat.bandeaux = [{ t:'err', m:message }];
+  majBandeau(); rendre();
+}
+
+async function demarrer(){
+  etat.bandeaux = [];
+  if (!Meg.disponible())
+    return stopper("Cet outil doit être ouvert depuis un onglet MEG connecté. Aucune donnée n'est affichée.");
+
+  const nomMeg = Meg.societeAffichee();
+  if (!nomMeg)
+    return stopper("Impossible de lire la société sélectionnée dans MEG. Relance l'outil depuis l'onglet MEG plutôt que de recharger cette page.");
+
+  const soc = SOCIETES.find(s => norm(s.nom) === norm(nomMeg));
+  if (!soc)
+    return stopper('Société « ' + nomMeg + " » inconnue de l'outil. Aucune donnée n'est affichée.");
+
+  const v = await Meg.verifierSociete(soc).catch(e => ({ ok:false, motif:e.message }));
+  if (!v.ok)
+    return stopper('Contrôle de cohérence échoué pour ' + soc.nom + ' — ' + v.motif + ". Aucune donnée n'est affichée.");
+
+  etat.societe = soc;
+  noter('Société suivie depuis MEG : ' + soc.nom + ' — identifiant vérifié.');
+  majBandeau();
+  await charger();
+}
+
+async function charger(){
+  etat.selection.clear(); etat.courante = null;
+  const soc = etat.societe;
+  if (!soc){ rendre(); return; }
+
+  const [a, v] = await Promise.all([
+    Meg.achats(soc).catch(e => { noter('Achats illisibles : ' + e.message); return []; }),
+    Meg.ventes(soc).catch(e => { noter('Ventes illisibles : ' + e.message); return { lignes:[], annonce:null }; })
+  ]);
+
+  etat.donnees = { achats:a.map(ligneAchat), ventes:(v.lignes || []).map(ligneVente) };
+
+  if (v.annonce != null && v.lignes.length !== v.annonce){
+    etat.bandeaux.push({ t:'avert', m:'Ventes : MEG annonce ' + v.annonce + ' pièces, ' + v.lignes.length
+      + ' ont été lues. La liste peut être incomplète — à vérifier dans MEG avant de conclure.' });
+  }
+  noter('Chargé : ' + etat.donnees.achats.length + ' échéances fournisseurs, ' + etat.donnees.ventes.length + ' pièces de vente.');
+  rendre();
+}
+
+function majBandeau(){
+  const s = etat.societe;
+  document.documentElement.style.setProperty('--soc', s ? s.fond : '#111827');
+  document.documentElement.style.setProperty('--socTx', s ? s.texte : '#fff');
+  $('#socNom').textContent = s ? s.nom : '— aucune société —';
+  const p = $('#pastille');
+  p.classList.toggle('live', !!s);
+  p.classList.toggle('ko', !s);
+  $('#etatTx').textContent = s ? 'société suivie depuis MEG' : 'arrêté';
+}
+
+/* =========================================================================
+   Filtrage et rendu
+   ========================================================================= */
+function visibles(){
+  const q = $('#recherche').value.trim().toLowerCase();
+  const f = $('#filtreStatut').value;
+  const g = $('#filtreRelance').value;
+  return lignes().filter(l => {
+    if (f === 'attente' && l.pointee) return false;
+    if (f === 'regle' && !l.pointee) return false;
+    if (g === 'retard' && retard(l.echeance) <= 0) return false;
+    if (g === 'jamais' && nbRelances(l.cle) > 0) return false;
+    if (q && !((l.tiers||'') + ' ' + (l.piece||'')).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => (a.echeance||'').localeCompare(b.echeance||''));
+}
+
+function rendre(){ rendreBandeaux(); rendreOnglets(); rendreListe(); rendreDetail(); rendreLot(); rendreJournal(); }
+
+function rendreBandeaux(){
+  $('#bandeaux').innerHTML = etat.bandeaux.map(b => '<div class="bandeau ' + b.t + '">' + echapper(b.m) + '</div>').join('');
+}
+
+function rendreOnglets(){
+  const n = $('#circuits'); n.innerHTML = '';
+  Object.entries(CIRCUITS).forEach(([cle, c]) => {
+    const reste = (etat.donnees[cle] || []).filter(l => !l.pointee && !l.avoir).length;
+    const b = document.createElement('button');
+    b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', String(cle === etat.circuit));
+    b.innerHTML = c.titre + '<span class="cpt">' + reste + '</span>';
+    b.onclick = () => { etat.circuit = cle; etat.courante = null; etat.selection.clear(); rendre(); };
+    n.appendChild(b);
+  });
+}
+
+function rendreListe(){
+  const v = visibles();
+  $('#titreListe').textContent = CIRCUITS[etat.circuit].titre + ' — ' + v.length + ' ligne' + (v.length > 1 ? 's' : '');
+  if (!v.length){ $('#listeWrap').innerHTML = '<p class="vide">Rien à afficher.</p>'; return; }
+
+  const corps = v.map(l => {
+    const r = retard(l.echeance);
+    const statut = l.avoir ? '<span class="puce p-gris">Avoir</span>'
+      : l.pointee ? '<span class="puce p-ok">Pointé</span>'
+      : l.partielle ? '<span class="puce p-att">Partiel</span>'
+      : (r > 0 ? '<span class="puce p-non">+' + r + ' j</span>' : '<span class="puce p-att">à échoir</span>');
+    const dr = derniereRelance(l.cle);
+    const case_ = (l.bloquee || l.pointee || l.avoir)
+      ? '<span class="puce p-gris">—</span>'
+      : '<input type="checkbox" data-cle="' + l.cle + '"' + (etat.selection.has(l.cle) ? ' checked' : '') + '>';
+    return '<tr data-cle="' + l.cle + '" class="' + (l.bloquee ? 'bloquee' : '') + '" aria-selected="' + (etat.courante === l.cle) + '">'
+      + '<td class="chk">' + case_ + '</td>'
+      + '<td class="piece">' + echapper(l.piece || '—') + '</td>'
+      + '<td class="tiers" title="' + echapper(l.tiers || '') + '">' + echapper(l.tiers || '—') + '</td>'
+      + '<td>' + jourFr(l.echeance) + '</td>'
+      + '<td class="num">' + eur(l.montant) + '</td>'
+      + '<td>' + statut + (dr ? ' <span class="puce p-gris" title="Dernière relance : niveau ' + dr.niveau + ' du ' + jourFr(dr.date) + '">R' + dr.niveau + '</span>' : '') + '</td></tr>';
+  }).join('');
+
+  $('#listeWrap').innerHTML = '<table class="liste"><thead><tr>'
+    + '<th class="chk"><input type="checkbox" id="toutCocher" aria-label="Tout sélectionner"></th>'
+    + '<th>Pièce</th><th>' + CIRCUITS[etat.circuit].tiers + '</th><th>Éch.</th>'
+    + '<th class="num">Montant</th><th>État</th></tr></thead><tbody>' + corps + '</tbody></table>';
+
+  $('#listeWrap').querySelectorAll('tbody tr').forEach(tr => {
+    tr.onclick = (ev) => { if (ev.target.type === 'checkbox') return;
+      etat.courante = tr.dataset.cle; rendreListe(); rendreDetail(); };
+  });
+  $('#listeWrap').querySelectorAll('input[data-cle]').forEach(c => {
+    c.onclick = (ev) => ev.stopPropagation();
+    c.onchange = () => { if (c.checked) etat.selection.add(c.dataset.cle); else etat.selection.delete(c.dataset.cle); rendreLot(); };
+  });
+  const tout = $('#toutCocher');
+  if (tout) tout.onchange = () => {
+    v.forEach(l => { if (l.bloquee || l.pointee || l.avoir) return;
+      if (tout.checked) etat.selection.add(l.cle); else etat.selection.delete(l.cle); });
+    rendre();
+  };
+}
+
+function rendreDetail(){
+  const d = $('#detail');
+  const l = etat.courante ? ligneParCle(etat.courante) : null;
+  if (!l){ d.innerHTML = '<p class="vide">Sélectionne une ligne à gauche pour voir son détail, son historique et rédiger une relance.</p>'; return; }
+
+  const r = retard(l.echeance);
+  const relancesPossibles = CIRCUITS[l.circuit].relances && !l.avoir;
+
+  const alerte = l.bloquee
+    ? '<div class="signal">Ligne verrouillée (' + echapper(l.motifBlocage) + ') — aucune écriture possible.</div>'
+    : l.avoir ? '<div class="signal">Avoir — à déduire de l\'encours du client, ni à encaisser ni à relancer.</div>'
+    : l.partielle ? '<div class="signal">Règlement partiel déjà enregistré dans MEG — vérifier le solde restant avant de pointer.</div>' : '';
+
+  const a = actes(l.cle);
+  const ordre = a.map((x,i) => ({x,i})).sort((p,q) => (q.x.date||'').localeCompare(p.x.date||'') || (q.i - p.i));
+  const rangs = ordre.map(({x,i}) =>
+      '<tr><td class="colDate"><input type="date" value="' + (x.date||'') + '" data-i="' + i + '" data-champ="date"></td>'
+    + '<td>' + (x.niveau ? '<span class="puce p-gris" style="margin-right:5px">R' + x.niveau + '</span>' : '')
+    + '<input type="text" value="' + echapper(x.texte) + '" data-i="' + i + '" data-champ="texte" placeholder="Décrire l\'action entreprise" style="width:' + (x.niveau ? 'calc(100% - 34px)' : '100%') + '"></td>'
+    + '<td class="colSup"><button class="sup" data-sup="' + i + '" title="Supprimer">✕</button></td></tr>').join('');
+
+  const niveau = niveauSuggere(l);
+  const dr = derniereRelance(l.cle);
+
+  d.innerHTML = '<div class="detail">' + alerte
+    + '<div class="montant">' + eur(l.montant) + '</div>'
+    + '<div class="tiersNom">' + echapper(l.tiers || '—') + ' · ' + echapper(l.piece || '—') + '</div>'
+    + '<dl>'
+    + '<dt>Échéance</dt><dd>' + jourFr(l.echeance) + (l.echeance ? (r > 0 ? ' — en retard de ' + r + ' jours' : (r === 0 ? " — aujourd'hui" : ' — dans ' + (-r) + ' jours')) : '') + '</dd>'
+    + '<dt>Date de pièce</dt><dd>' + jourFr(l.date) + '</dd>'
+    + '<dt>Mode</dt><dd>' + echapper(l.mode) + '</dd>'
+    + (l.exporte ? '<dt>Comptabilité</dt><dd>déjà exportée</dd>' : '')
+    + (relancesPossibles && dr ? '<dt>Dernière relance</dt><dd>niveau ' + dr.niveau + ' le ' + jourFr(dr.date) + '</dd>' : '')
+    + '<dt>Statut</dt><dd>' + (l.pointee ? 'pointé' : (l.partielle ? 'partiellement réglé' : 'non pointé')) + '</dd>'
+    + '</dl>'
+    + '<div class="bloc"><h3>Actions entreprises</h3>'
+    + '<table class="actes"><thead><tr><th class="colDate">Date</th><th>Action</th><th class="colSup"></th></tr></thead>'
+    + '<tbody id="corpsActes">' + (rangs || '<tr><td colspan="3" style="color:var(--mut);font-size:12.5px;padding:2px 0 8px">Aucune action notée.</td></tr>') + '</tbody></table>'
+    + '<button class="btn petit" id="ajoutActe">+ Ajouter une action</button></div>'
+    + (relancesPossibles ? '<div class="bloc"><h3>Rédiger une relance</h3><div class="relances">'
+        + '<button class="btn petit" data-niv="1">Relance 1 — amicale</button>'
+        + '<button class="btn petit" data-niv="2">Relance 2 — formelle</button>'
+        + '<button class="btn petit" data-niv="3">Relance 3 — mise en demeure</button></div>'
+        + '<p class="conseil">' + conseilNiveau(l, niveau) + '</p></div>' : '')
+    + '<div class="bloc"><div class="boutons">'
+    + '<button class="btn prim" id="dPointer"' + (l.pointee || l.bloquee || l.avoir ? ' disabled' : '') + '>Pointer comme réglée</button>'
+    + '</div></div></div>';
+
+  const maj = () => { rendreListe(); rendreDetail(); };
+  const ba = $('#ajoutActe');
+  if (ba) ba.onclick = () => { actes(l.cle).push({ date:aujourdhui(), texte:'' }); maj();
+    const ch = document.querySelectorAll('#corpsActes input[data-champ=texte]'); if (ch.length) ch[0].focus(); };
+  d.querySelectorAll('#corpsActes input').forEach(inp => {
+    inp.onchange = () => { actes(l.cle)[+inp.dataset.i][inp.dataset.champ] = inp.value; rendreListe(); };
+  });
+  d.querySelectorAll('[data-sup]').forEach(b => { b.onclick = () => { actes(l.cle).splice(+b.dataset.sup,1); maj(); }; });
+  d.querySelectorAll('[data-niv]').forEach(b => { b.onclick = () => ouvrirRelance(l, +b.dataset.niv); });
+  const p = $('#dPointer'); if (p) p.onclick = () => demanderConfirmation([l]);
+}
+
+function rendreLot(){
+  const n = etat.selection.size;
+  $('#lot').hidden = (n === 0);
+  $('#lotN').textContent = n + (n > 1 ? ' lignes sélectionnées' : ' ligne sélectionnée');
+}
+function rendreJournal(){
+  const j = $('#journal');
+  if (!etat.journal.length){ j.textContent = "Rien pour l'instant."; return; }
+  j.innerHTML = '<ol>' + etat.journal.slice().reverse().map(e => '<li>' + echapper(e) + '</li>').join('') + '</ol>';
+}
+function noter(t){
+  const h = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  etat.journal.push(h + ' — ' + t);
+  rendreJournal();
+}
+
+/* =========================================================================
+   Relances
+   ========================================================================= */
+function niveauSuggere(l){
+  const r = retard(l.echeance);
+  const dr = derniereRelance(l.cle);
+  const atteint = dr ? dr.niveau : 0;
+  if (atteint >= 2 || r > 60) return 3;
+  if (atteint === 1 || r > 20) return 2;
+  return 1;
+}
+function conseilNiveau(l, niv){
+  const r = retard(l.echeance);
+  if (r <= 0) return 'Pas encore échue — une relance serait prématurée.';
+  const dr = derniereRelance(l.cle);
+  const base = dr ? 'Dernière relance : niveau ' + dr.niveau + ' le ' + jourFr(dr.date) : 'Aucune relance enregistrée';
+  return base + ' · ' + r + ' jours de retard — le niveau ' + niv + ' paraît adapté.';
+}
+function rappelHistorique(l){
+  const tout = actes(l.cle).slice().sort((x,y) => (x.date||'').localeCompare(y.date||''));
+  const nr = nbRelances(l.cle);
+  const dr = derniereRelance(l.cle);
+  const notes = tout.filter(a => !a.niveau && a.texte && (!dr || (a.date||'') >= (dr.date||'')));
+  const note = notes.length ? notes[notes.length-1] : null;
+  if (note) return "\n\nNous faisons suite à notre échange du " + jourFr(note.date)
+    + ", à la suite duquel nous restons dans l'attente de votre règlement.";
+  if (nr === 1 && dr) return "\n\nUn premier rappel vous a été adressé le " + jourFr(dr.date) + ", resté sans effet à ce jour.";
+  if (nr >= 2 && dr) return "\n\nMalgré nos " + nr + " relances successives, la dernière datant du " + jourFr(dr.date) + ", cette facture demeure impayée.";
+  return '';
+}
+
+function redigerRelance(l, niveau){
+  const soc = etat.societe ? etat.societe.nom : '';
+  const r = Math.max(0, retard(l.echeance));
+  const hist = rappelHistorique(l);
+  const ref = 'la facture n° ' + (l.piece || '—') + ' du ' + jourFr(l.date)
+    + ", d'un montant de " + eur(l.montant) + ', échue le ' + jourFr(l.echeance);
+  const signature = "\n\nBien cordialement,\n\nLe service comptabilité\n" + soc;
+  let objet, corps;
+
+  if (niveau === 1){
+    objet = 'Facture ' + (l.piece || '') + ' — simple rappel';
+    corps = "Madame, Monsieur,"
+      + "\n\nSauf erreur ou règlement croisé avec ce message, " + ref + ", ne nous est pas encore parvenue." + hist
+      + "\n\nIl s'agit très probablement d'un oubli, et nous vous serions reconnaissants de bien vouloir procéder au règlement dès que possible."
+      + "\n\nSi ce règlement a déjà été effectué, merci de ne pas tenir compte de ce message — et n'hésitez pas à nous transmettre la référence du paiement, nous vérifierons de notre côté."
+      + "\n\nNous restons à votre disposition pour toute question sur cette facture.";
+  } else if (niveau === 2){
+    objet = 'Facture ' + (l.piece || '') + ' — relance, règlement attendu';
+    corps = "Madame, Monsieur,"
+      + "\n\nNous revenons vers vous au sujet de " + ref + ", soit " + r + " jours de retard à ce jour." + hist
+      + "\n\nNous vous demandons de bien vouloir procéder au règlement de cette somme sous huitaine."
+      + "\n\nSi un élément fait obstacle à ce paiement — facture non reçue, litige sur la prestation, difficulté de trésorerie —, nous préférons en être informés afin de trouver ensemble une solution. À défaut de réponse de votre part, nous serions contraints de poursuivre nos démarches de recouvrement."
+      + "\n\nNous vous remercions de l'attention que vous porterez à ce rappel.";
+  } else {
+    objet = 'MISE EN DEMEURE — Facture ' + (l.piece || '');
+    corps = "Madame, Monsieur,"
+      + "\n\nMalgré nos relances demeurées sans effet, " + ref + ", reste impayée à ce jour, soit " + r + " jours après son échéance." + hist
+      + "\n\nPar la présente, nous vous mettons en demeure de régler la somme de " + eur(l.montant)
+      + " dans un délai de huit jours à compter de la réception de ce courrier."
+      + "\n\nÀ défaut de règlement dans ce délai, nous nous verrons contraints de confier ce dossier à notre conseil en vue d'une procédure de recouvrement, sans nouvel avertissement."
+      + "\n\nNous vous rappelons qu'en application de l'article L441-10 du code de commerce, tout retard de paiement entre professionnels entraîne de plein droit des pénalités de retard ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement."
+      + "\n\nNous restons naturellement ouverts à un échange si vous souhaitez régulariser cette situation avant l'expiration de ce délai.";
+  }
+  return { objet, corps: corps + signature };
+}
+
+let relanceCourante = null;
+function ouvrirRelance(l, niveau){
+  const t = redigerRelance(l, niveau);
+  relanceCourante = { ligne:l, niveau };
+  $('#rNiveauTag').textContent = 'niveau ' + niveau;
+  $('#rNiveauTag').className = 'niveauTag n' + niveau;
+  $('#rSous').textContent = 'Saisis le destinataire. Rien ne part sans ton geste.';
+  $('#rDest').value = '';
+  $('#rObjet').value = t.objet;
+  $('#rCorps').value = t.corps;
+
+  const notes = actes(l.cle).filter(a => !a.niveau && a.texte)
+    .sort((x,y) => (y.date||'').localeCompare(x.date||'')).slice(0,3);
+  const zn = $('#rNotes');
+  if (notes.length){
+    zn.hidden = false;
+    zn.innerHTML = '<b>Tes notes sur ce dossier</b> — à reformuler toi-même si tu veux les citer :<br>'
+      + notes.map(n => '· ' + jourFr(n.date) + ' — ' + echapper(n.texte)).join('<br>');
+  } else { zn.hidden = true; zn.innerHTML = ''; }
+  $('#dlgRelance').showModal();
+}
+
+/* =========================================================================
+   Écriture
+   ========================================================================= */
+function demanderConfirmation(liste){
+  if (!etat.societe) return;
+  const date = $('#lotDate').value || aujourdhui();
+  const dlg = $('#confirme');
+  $('#cTitre').textContent = liste.length > 1 ? 'Pointer ' + liste.length + ' échéances' : 'Pointer cette échéance';
+  $('#cTexte').innerHTML = 'Société <b>' + echapper(etat.societe.nom) + '</b> · date de règlement <b>' + jourFr(date)
+    + "</b>. L'écriture sera envoyée à MEG.";
+  $('#cListe').innerHTML = liste.slice(0,12)
+    .map(l => '<li>' + echapper(l.piece||'—') + ' · ' + echapper(l.tiers||'—') + ' · ' + eur(l.montant) + '</li>').join('')
+    + (liste.length > 12 ? '<li>… et ' + (liste.length - 12) + ' autres</li>' : '');
+  dlg.returnValue = '';
+  dlg.showModal();
+  dlg.addEventListener('close', function once(){
+    dlg.removeEventListener('close', once);
+    if (dlg.returnValue === 'oui') appliquer(liste, date);
+  });
+}
+
+async function appliquer(liste, date){
+  let ok = 0, ko = 0;
+  for (const l of liste){
+    try {
+      const r = (l.circuit === 'achats')
+        ? await Meg.pointerAchat(etat.societe, l, date)
+        : await Meg.encaisserVente(etat.societe, l, date);
+      if (r && r.ok){
+        l.pointee = true; l.datePointage = date; ok++;
+        actes(l.cle).push({ date, texte:'Règlement pointé dans MEG' });
+      } else { ko++; noter('Échec sur ' + l.piece + ' (code ' + (r ? r.status : '?') + ')'); }
+    } catch(e){ ko++; noter('Échec sur ' + l.piece + ' : ' + e.message); }
+  }
+  etat.selection.clear();
+  noter(ok + ' pointage(s) au ' + jourFr(date) + (ko ? ', ' + ko + ' échec(s)' : ''));
+  if (ok) noter('Relecture MEG recommandée avant de clore la séance.');
+  rendre();
+}
+
+/* =========================================================================
+   Câblage
+   ========================================================================= */
+function init(){
+  $('#lotDate').value = aujourdhui();
+  $('#recherche').oninput = () => { etat.selection.clear(); rendre(); };
+  $('#filtreStatut').onchange = () => { etat.selection.clear(); rendre(); };
+  $('#filtreRelance').onchange = () => { etat.selection.clear(); rendre(); };
+  $('#lotAnnuler').onclick = () => { etat.selection.clear(); rendre(); };
+  $('#lotValider').onclick = () => {
+    const l = lignes().filter(x => etat.selection.has(x.cle));
+    if (l.length) demanderConfirmation(l);
+  };
+  $('#rFermer').onclick = () => $('#dlgRelance').close();
+  $('#rCopier').onclick = async () => {
+    const t = $('#rObjet').value + '\n\n' + $('#rCorps').value;
+    try { await navigator.clipboard.writeText(t); $('#rCopier').textContent = 'Copié'; setTimeout(() => $('#rCopier').textContent = 'Copier', 1400); }
+    catch(e){ $('#rCopier').textContent = 'Copie refusée'; setTimeout(() => $('#rCopier').textContent = 'Copier', 1800); }
+  };
+  $('#rMail').onclick = () => {
+    window.location.href = 'mailto:' + encodeURIComponent($('#rDest').value || '')
+      + '?subject=' + encodeURIComponent($('#rObjet').value || '')
+      + '&body=' + encodeURIComponent($('#rCorps').value || '');
+  };
+  $('#rEnregistrer').onclick = () => {
+    if (!relanceCourante) return;
+    const { ligne, niveau } = relanceCourante;
+    const dest = $('#rDest').value || 'destinataire non renseigné';
+    actes(ligne.cle).push({ date:aujourdhui(), niveau, texte:'Relance niveau ' + niveau + ' — ' + dest });
+    $('#dlgRelance').close();
+    rendreListe(); rendreDetail();
+  };
+  demarrer();
+}
+
+init();
+</script>
+</body>
+</html>
